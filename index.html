@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Đa Phòng Máy - TH Tân Châu</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS CDN cho Xuất & Nhập Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-[98%] mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white text-indigo-900 p-2 rounded-lg font-bold">
+                    <i class="fa-solid fa-school text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold uppercase tracking-wide">Trưường Tiểu học Tân Châu - Phân hiệu 1</h1>
+                    <div class="flex items-center space-x-2 mt-1 flex-wrap gap-1">
+                        <span class="text-xs text-indigo-200">Đang quản lý:</span>
+                        <select id="roomSelector" onchange="switchRoom(this.value)" class="bg-indigo-800 text-white text-xs font-semibold px-2 py-1 rounded border border-indigo-700 focus:outline-none">
+                            <!-- Options -->
+                        </select>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="openAddRoomModal()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-[11px] px-2 py-1 rounded font-medium transition" title="Thêm phòng mới">
+                                <i class="fa-solid fa-plus mr-1"></i> Thêm Phòng
+                            </button>
+                            <button onclick="openEditRoomModal()" class="bg-amber-600 hover:bg-amber-500 text-white text-[11px] px-2 py-1 rounded font-medium transition" title="Sửa tên phòng hiện tại">
+                                <i class="fa-solid fa-pen mr-1"></i> Sửa Phòng
+                            </button>
+                            <button onclick="deleteCurrentRoom()" class="bg-red-600 hover:bg-red-500 text-white text-[11px] px-2 py-1 rounded font-medium transition" title="Xóa phòng hiện tại">
+                                <i class="fa-solid fa-trash mr-1"></i> Xóa Phòng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 mt-2 sm:mt-0">
+                <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg cursor-pointer flex items-center shadow transition">
+                    <i class="fa-solid fa-file-excel mr-1.5 text-sm"></i> Tải File Excel Mới (.xlsx/.xls)
+                    <input type="file" id="excelFileInput" class="hidden" accept=".xlsx, .xls" onchange="importExcelFile(event)">
+                </label>
+                <button onclick="exportCurrentSheet()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center shadow transition">
+                    <i class="fa-solid fa-download mr-1.5 text-sm"></i> Xuất Excel Phụ Lục Này
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <div class="max-w-[98%] mx-auto px-2 py-5 flex-1 w-full grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+        <!-- Sidebar Navigation -->
+        <aside class="lg:col-span-1 space-y-3">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 space-y-2">
+                <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider" id="room-stat-title">Thống Kê Phòng</h3>
+                <div class="grid grid-cols-2 gap-2 text-center">
+                    <div class="bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                        <span class="block text-xl font-bold text-indigo-600" id="stat-total-pc">0</span>
+                        <span class="text-[10px] text-slate-500 font-medium">Máy vi tính</span>
+                    </div>
+                    <div class="bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                        <span class="block text-xl font-bold text-emerald-600" id="stat-devices">0</span>
+                        <span class="text-[10px] text-slate-500 font-medium">Thiết bị khác</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menu Phụ Lục -->
+            <nav class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="px-3 py-2.5 bg-slate-100 border-b border-slate-200 font-semibold text-[11px] text-slate-600 uppercase">
+                    Danh Mục Phụ Lục Hồ Sơ
+                </div>
+                <div class="divide-y divide-slate-100 text-xs">
+                    <button onclick="switchTab('pl1')" id="nav-pl1" class="w-full text-left px-3 py-2.5 flex items-center space-x-2.5 hover:bg-slate-50 transition text-blue-600 font-semibold bg-blue-50/50">
+                        <i class="fa-solid fa-table-list w-4"></i>
+                        <span>Phụ lục 1: Cấu Hình Tổng Quát</span>
+                    </button>
+                    <button onclick="switchTab('pl2a')" id="nav-pl2a" class="w-full text-left px-3 py-2.5 flex items-center space-x-2.5 hover:bg-slate-50 transition text-slate-600">
+                        <i class="fa-solid fa-microchip w-4"></i>
+                        <span>Phụ lục 2a: Lý Lịch Từng Máy</span>
+                    </button>
+                    <button onclick="switchTab('pl2b')" id="nav-pl2b" class="w-full text-left px-3 py-2.5 flex items-center space-x-2.5 hover:bg-slate-50 transition text-slate-600">
+                        <i class="fa-solid fa-network-wired w-4"></i>
+                        <span>Phụ lục 2b: Thiết Bị Khác</span>
+                    </button>
+                    <button onclick="switchTab('pl3')" id="nav-pl3" class="w-full text-left px-3 py-2.5 flex items-center space-x-2.5 hover:bg-slate-50 transition text-slate-600">
+                        <i class="fa-solid fa-calendar-check w-4"></i>
+                        <span>Phụ lục 3: Đăng Ký Sử Dụng</span>
+                    </button>
+                    <button onclick="switchTab('pl4')" id="nav-pl4" class="w-full text-left px-3 py-2.5 flex items-center space-x-2.5 hover:bg-slate-50 transition text-slate-600">
+                        <i class="fa-solid fa-book-journal-whills w-4"></i>
+                        <span>Phụ lục 4: Nhật Ký Hoạt Động</span>
+                    </button>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Panel -->
+        <main class="lg:col-span-4 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+
+            <!-- PHỤ LỤC 1 -->
+            <section id="sec-pl1" class="space-y-4">
+                <div class="flex flex-wrap justify-between items-center pb-3 border-b border-slate-200">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 uppercase">PHỤ LỤC 1: SỔ LÝ LỊCH PHÒNG BỘ MÔN TIN HỌC (CẤU HÌNH TỔNG QUÁT)</h2>
+                        <p class="text-xs text-slate-500">Quản lý toàn bộ cấu hình máy vi tính trong phòng máy hiện tại</p>
+                    </div>
+                    <button onclick="openAddPcModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center shadow">
+                        <i class="fa-solid fa-plus mr-1"></i> Thêm Máy Mới
+                    </button>
+                </div>
+                <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                    <table class="w-full text-xs text-left text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold text-[11px] whitespace-nowrap">
+                            <tr>
+                                <th class="p-2 border-b">Tên máy</th>
+                                <th class="p-2 border-b">Bo Mạch chính (Main board)</th>
+                                <th class="p-2 border-b">Vi Xử lý (CPU)</th>
+                                <th class="p-2 border-b">Bộ nhớ (RAM)</th>
+                                <th class="p-2 border-b">Ổ đĩa cứng (HDD)</th>
+                                <th class="p-2 border-b">Nguồn (Power)</th>
+                                <th class="p-2 border-b">Bàn phím (Keyboard)</th>
+                                <th class="p-2 border-b">Chuột (Mouse)</th>
+                                <th class="p-2 border-b">Màn hình (Monitor)</th>
+                                <th class="p-2 border-b">Nguồn gốc</th>
+                                <th class="p-2 border-b text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-pl1" class="divide-y divide-slate-100 whitespace-nowrap"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- PHỤ LỤC 2a -->
+            <section id="sec-pl2a" class="hidden space-y-4">
+                <div class="flex flex-wrap justify-between items-center pb-3 border-b border-slate-200 gap-2">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 uppercase">PHỤ LỤC 2a: PHIẾU THEO DÕI LÝ LỊCH MÁY</h2>
+                        <p class="text-xs text-slate-500">Xem lý lịch chi tiết và nhật ký bảo trì/sửa chữa từng máy</p>
+                    </div>
+                    <!-- Nút lệnh Thêm, Sửa, Xóa Máy ngay trong Phụ lục 2a -->
+                    <div class="flex items-center space-x-2 flex-wrap">
+                        <label class="text-xs font-semibold">Chọn Máy:</label>
+                        <select id="select-pc-detail" onchange="renderPcDetail()" class="border border-slate-300 text-xs rounded-lg px-3 py-1.5 focus:ring-indigo-500 font-bold text-indigo-700"></select>
+                        <button onclick="openAddPcModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded shadow"><i class="fa-solid fa-plus mr-1"></i> Thêm máy</button>
+                        <button onclick="editCurrentPcFromPl2a()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded shadow"><i class="fa-solid fa-pen mr-1"></i> Sửa máy</button>
+                        <button onclick="deleteCurrentPcFromPl2a()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded shadow"><i class="fa-solid fa-trash mr-1"></i> Xóa máy</button>
+                    </div>
+                </div>
+                <div id="pc-detail-card" class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs"></div>
+                <div class="pt-2">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-bold uppercase text-slate-700">PHẦN THEO DÕI SỬA CHỮA, THAY THẾ CÁC LINH KIỆN CỦA MÁY</h3>
+                        <button onclick="openAddRepairModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow">+ Thêm Lượt Sửa</button>
+                    </div>
+                    <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-xs text-left text-slate-600">
+                            <thead class="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+                                <tr>
+                                    <th class="p-2 border-b w-12 text-center">STT</th>
+                                    <th class="p-2 border-b">TÌNH TRẠNG HƯ HỎNG</th>
+                                    <th class="p-2 border-b">NGÀY SỬA CHỮA-THAY THẾ</th>
+                                    <th class="p-2 border-b">NỘI DUNG SỬA CHỮA/THAY THẾ</th>
+                                    <th class="p-2 border-b">KÝ NHẬN</th>
+                                    <th class="p-2 border-b text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-pl2a-repair" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PHỤ LỤC 2b -->
+            <section id="sec-pl2b" class="hidden space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-200">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 uppercase">PHỤ LỤC 2b: PHIẾU THEO DÕI LÝ LỊCH THIẾT BỊ KHÁC TRONG PHÒNG BỘ MÔN TIN HỌC</h2>
+                        <p class="text-xs text-slate-500">Danh mục Modem, Switch, Tivi, Tủ Rack, Máy in...</p>
+                    </div>
+                    <button onclick="openAddDeviceModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow">+ Thêm Thiết Bị</button>
+                </div>
+                <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                    <table class="w-full text-xs text-left text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+                            <tr>
+                                <th class="p-2.5 border-b w-12 text-center">STT</th>
+                                <th class="p-2.5 border-b">Thiết bị</th>
+                                <th class="p-2.5 border-b">Nhãn hiệu</th>
+                                <th class="p-2.5 border-b">Thông số kỹ thuật</th>
+                                <th class="p-2.5 border-b">Số Serial (nếu có)</th>
+                                <th class="p-2.5 border-b">Ghi Chú</th>
+                                <th class="p-2.5 border-b text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-pl2b" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- PHỤ LỤC 3 -->
+            <section id="sec-pl3" class="hidden space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-200">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 uppercase">PHỤ LỤC 3: PHIẾU ĐĂNG KÝ SỬ DỤNG PHÒNG BỘ MÔN TIN HỌC</h2>
+                        <p class="text-xs text-slate-500">Phiếu đăng ký tiết dạy thực hành</p>
+                    </div>
+                    <button onclick="openAddPl3Modal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow">+ Thêm Đăng Ký</button>
+                </div>
+                <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                    <table class="w-full text-xs text-left text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+                            <tr>
+                                <th class="p-2 border-b w-12 text-center">STT</th>
+                                <th class="p-2 border-b">Ngày Tháng</th>
+                                <th class="p-2 border-b">Tiết</th>
+                                <th class="p-2 border-b">Số học sinh</th>
+                                <th class="p-2 border-b">Số lượng máy sử dụng</th>
+                                <th class="p-2 border-b">Nội dung hoạt động</th>
+                                <th class="p-2 border-b">Ghi chú</th>
+                                <th class="p-2 border-b text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-pl3" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- PHỤ LỤC 4 -->
+            <section id="sec-pl4" class="hidden space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-200">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 uppercase">PHỤ LỤC 4: SỔ NHẬT KÝ HOẠT ĐỘNG PHÒNG BỘ MÔN TIN HỌC</h2>
+                        <p class="text-xs text-slate-500">Sổ nhật ký tình trạng phòng máy đầu và sau giờ dạy</p>
+                    </div>
+                    <button onclick="openAddPl4Modal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow">+ Thêm Nhật Ký</button>
+                </div>
+                <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                    <table class="w-full text-xs text-left text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+                            <tr>
+                                <th class="p-2 border-b w-10 text-center">STT</th>
+                                <th class="p-2 border-b">Ngày dạy</th>
+                                <th class="p-2 border-b">Buổi dạy</th>
+                                <th class="p-2 border-b">Tiết dạy</th>
+                                <th class="p-2 border-b">Lớp</th>
+                                <th class="p-2 border-b">Tên bài dạy (hoặc nội dung hoạt động)</th>
+                                <th class="p-2 border-b">Tình trạng phòng máy đầu giờ dạy</th>
+                                <th class="p-2 border-b">Tình trạng phòng máy sau giờ dạy</th>
+                                <th class="p-2 border-b">GV ký tên</th>
+                                <th class="p-2 border-b text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-pl4" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL THÊM PHÒNG -->
+    <div id="roomModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2">Thêm Phòng Máy Mới</h3>
+            <form onsubmit="saveNewRoom(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="font-semibold block mb-1">Tên phòng máy *</label>
+                    <input type="text" id="newRoomName" required placeholder="Phòng Máy 2..." class="w-full border rounded p-2">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal('roomModal')" class="px-3 py-1.5 border rounded">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-indigo-600 text-white rounded font-semibold">Tạo Phòng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL SỬA PHÒNG -->
+    <div id="editRoomModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2">Sửa Tên Phòng Máy</h3>
+            <form onsubmit="saveEditRoom(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="font-semibold block mb-1">Tên phòng máy mới *</label>
+                    <input type="text" id="editRoomNameInput" required class="w-full border rounded p-2">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal('editRoomModal')" class="px-3 py-1.5 border rounded">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-amber-600 text-white rounded font-semibold">Cập Nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PHỤ LỤC 1 -->
+    <div id="pcModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2" id="pcModalTitle">Thêm Máy Vi Tính</h3>
+            <form id="pcForm" onsubmit="savePcForm(event)" class="grid grid-cols-2 gap-3 text-xs">
+                <input type="hidden" id="pcFormIndex">
+                <div><label class="font-semibold block mb-1">Tên máy *</label><input type="text" id="pcFormId" required class="w-full border rounded p-2" placeholder="GV, M1, M2..."></div>
+                <div><label class="font-semibold block mb-1">Bo mainboard</label><input type="text" id="pcFormMain" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">CPU</label><input type="text" id="pcFormCpu" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">RAM</label><input type="text" id="pcFormRam" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Ổ cứng</label><input type="text" id="pcFormHdd" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Nguồn</label><input type="text" id="pcFormPower" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Bàn phím</label><input type="text" id="pcFormKeyboard" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Chuột</label><input type="text" id="pcFormMouse" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Màn hình</label><input type="text" id="pcFormMonitor" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Nguồn gốc</label><input type="text" id="pcFormSource" value="Xã hội hóa" class="w-full border rounded p-2"></div>
+                <div class="col-span-2 flex justify-end space-x-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal('pcModal')" class="px-3 py-1.5 border rounded">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-indigo-600 text-white rounded font-semibold">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PHỤ LỤC 2a (Sửa chữa) -->
+    <div id="repairModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-4">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2" id="repairModalTitle">Thêm Lượt Sửa Chữa</h3>
+            <form id="repairForm" onsubmit="saveRepairForm(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="repairFormIndex">
+                <div><label class="font-semibold block mb-1">TÌNH TRẠNG HƯ HỎNG *</label><input type="text" id="repairFormHuhuong" required class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">NGÀY SỬA CHỮA-THAY THẾ</label><input type="text" id="repairFormNgay" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">NỘI DUNG SỬA CHỮA/THAY THẾ</label><input type="text" id="repairFormNoidung" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">KÝ NHẬN</label><input type="text" id="repairFormKynhan" class="w-full border rounded p-2"></div>
+                <div class="flex justify-end space-x-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal('repairModal')" class="px-3 py-1.5 border rounded">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-indigo-600 text-white rounded font-semibold">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PHỤ LỤC 2b (Thiết bị khác) -->
+    <div id="deviceModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-4">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2" id="deviceModalTitle">Thêm Thiết Bị Khác</h3>
+            <form id="deviceForm" onsubmit="saveDeviceForm(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="deviceFormIndex">
+                <div><label class="font-semibold block mb-1">Thiết bị *</label><input type="text" id="deviceFormName" required class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Nhãn hiệu</label><input type="text" id="deviceFormBrand" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Thông số kỹ thuật</label><input type="text" id="deviceFormSpec" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Số Serial (nếu có)</label><input type="text" id="deviceFormSerial" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Ghi Chú</label><input type="text" id="deviceFormNote" class="w-full border rounded p-2"></div>
+                <div class="flex justify-end space-x-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal('deviceModal')" class="px-3 py-1.5 border rounded">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-indigo-600 text-white rounded font-semibold">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PHỤ LỤC 3 (Đăng ký) -->
+    <div id="pl3Modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-4">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2" id="pl3ModalTitle">Thêm Phiếu Đăng Ký</h3>
+            <form id="pl3Form" onsubmit="savePl3Form(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="pl3FormIndex">
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="font-semibold block mb-1">Ngày Tháng *</label><input type="text" id="pl3FormDate" required class="w-full border rounded p-2"></div>
+                    <div><label class="font-semibold block mb-1">Tiết</label><input type="text" id="pl3FormTiet" class="w-full border rounded p-2"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="font-semibold block mb-1">Số học sinh</label><input type="number" id="pl3FormHs" class="w-full border rounded p-2"></div>
+                    <div><label class="font-semibold block mb-1">Số lượng máy sử dụng</label><input type="number" id="pl3FormMay" class="w-full border rounded p-2"></div>
+                </div>
+                <div><label class="font-semibold block mb-1">Nội dung hoạt động</label><input type="text" id="pl3FormContent" required class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Ghi chú</label><input type="text" id="pl3FormNote" class="w-full border rounded p-2"></div>
+                <div class="flex justify-end space-x-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal('pl3Modal')" class="px-3 py-1.5 border rounded">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-indigo-600 text-white rounded font-semibold">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PHỤ LỤC 4 (Nhật ký) -->
+    <div id="pl4Modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2" id="pl4ModalTitle">Thêm Nhật Ký Tiết Dạy</h3>
+            <form id="pl4Form" onsubmit="savePl4Form(event)" class="grid grid-cols-2 gap-3 text-xs">
+                <input type="hidden" id="pl4FormIndex">
+                <div><label class="font-semibold block mb-1">Ngày dạy *</label><input type="text" id="pl4FormDate" required class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Buổi dạy</label><input type="text" id="pl4FormBuoi" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Tiết dạy</label><input type="text" id="pl4FormTiet" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Lớp</label><input type="text" id="pl4FormLop" class="w-full border rounded p-2"></div>
+                <div class="col-span-2"><label class="font-semibold block mb-1">Tên bài dạy (hoặc nội dung hoạt động)</label><input type="text" id="pl4FormBai" required class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Đầu giờ dạy</label><input type="text" id="pl4FormDau" value="Bình thường" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold block mb-1">Sau giờ dạy</label><input type="text" id="pl4FormSau" value="Bình thường" class="w-full border rounded p-2"></div>
+                <div class="col-span-2"><label class="font-semibold block mb-1">GV ký tên</label><input type="text" id="pl4FormGv" value="Phạm Văn Hiền" class="w-full border rounded p-2"></div>
+                <div class="col-span-2 flex justify-end space-x-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal('pl4Modal')" class="px-3 py-1.5 border rounded">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-indigo-600 text-white rounded font-semibold">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic & LocalStorage -->
+    <script>
+        let defaultRoomsData = {
+            "Phòng Máy Vi Tính 1": {
+                pcList: [
+                    { id: "GV", mainboard: "Gigabyte", cpu: "Intel-G3220", ram: "DDR3-4GB", hdd: "SSD 128GB", power: "550W", keyboard: "Genuis", mouse: "Logitech-USB", monitor: "AK-19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M1", mainboard: "Hp", cpu: "Intel-i3-4130", ram: "DDR3-4GB", hdd: "250GB", power: "240W", keyboard: "Genius", mouse: "Logitech-USB", monitor: "Samsung 19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M2", mainboard: "Hp", cpu: "Intel-i3-4130", ram: "DDR3-4GB", hdd: "SSD 128GB", power: "240W", keyboard: "Genius", mouse: "Logitech-USB", monitor: "Samsung 19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M3", mainboard: "Hp", cpu: "Intel-i3-4130", ram: "DDR3-4GB", hdd: "SSD 128GB", power: "240W", keyboard: "Genius", mouse: "Logitech-USB", monitor: "Dell 19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M4", mainboard: "Hp", cpu: "Intel-i3-4130", ram: "DDR3-4GB", hdd: "250GB", power: "240W", keyboard: "Logitech-USB", mouse: "Logitech-USB", monitor: "Hp 19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M5", mainboard: "Asus", cpu: "Intel-G4400", ram: "DDR4-4GB", hdd: "SSD 128GB", power: "450W", keyboard: "Genius", mouse: "A4Tech-USB", monitor: "Hp 19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M6", mainboard: "Asus", cpu: "Intel-G4400", ram: "DDR4-4GB", hdd: "SSD 128GB", power: "450W", keyboard: "Genius", mouse: "A4Tech-USB", monitor: "BenQ 19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M7", mainboard: "Biostar", cpu: "Intel-G3250", ram: "DDR3-4GB", hdd: "500GB", power: "350W", keyboard: "A4Tech", mouse: "Logitech-USB", monitor: "Hp 19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M8", mainboard: "Asus", cpu: "Intel-G3250", ram: "DDR3-4GB", hdd: "160GB", power: "350W", keyboard: "A4Tech", mouse: "Logitech-USB", monitor: "Dell 17inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M9", mainboard: "Brother", cpu: "Intel-G860", ram: "DDR3-4GB", hdd: "500GB", power: "400W", keyboard: "Genuis", mouse: "A4Tech-USB", monitor: "Asus 19inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M10", mainboard: "Winnfox", cpu: "Intel i5-4590", ram: "DDR3-8GB", hdd: "SSD 120GB", power: "450W", keyboard: "Logitech-USB", mouse: "Logitech-USB", monitor: "Glowy 19,5inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M11", mainboard: "Winnfox", cpu: "Intel i5-4590", ram: "DDR3-8GB", hdd: "SSD 120GB", power: "450W", keyboard: "Logitech-USB", mouse: "Logitech-USB", monitor: "Glowy 19,5inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M12", mainboard: "Winnfox", cpu: "Intel i5-4590", ram: "DDR3-8GB", hdd: "SSD 120GB", power: "450W", keyboard: "Logitech-USB", mouse: "Logitech-USB", monitor: "Glowy 19,5inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M13", mainboard: "Winnfox", cpu: "Intel i5-4590", ram: "DDR3-8GB", hdd: "SSD 120GB", power: "450W", keyboard: "Logitech-USB", mouse: "Logitech-USB", monitor: "Glowy 19,5inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M14-Li", mainboard: "Pineeon", cpu: "Intel i5-3230M", ram: "DDR3-8GB", hdd: "SSD 120GB", power: "", keyboard: "Logitech-USB", mouse: "Logitech-USB", monitor: "Glowy 24inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M15-Li", mainboard: "Pineeon", cpu: "Intel i5-3230M", ram: "DDR3-8GB", hdd: "SSD 120GB", power: "", keyboard: "Logitech-USB", mouse: "Logitech-USB", monitor: "Glowy 24inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M16-La", mainboard: "Dell", cpu: "Intel-i5 M460", ram: "DDR3-4GB", hdd: "SSD 120GB", power: "", keyboard: "Genuis", mouse: "Logitech-USB", monitor: "14inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M17-La", mainboard: "Toshiba", cpu: "Intel-i3 3120M", ram: "DDR3-4GB", hdd: "SSD 128GB", power: "", keyboard: "Genuis", mouse: "Logitech-USB", monitor: "14inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M18-La", mainboard: "Dell", cpu: "Intel-i5 2430M", ram: "DDR3-4GB", hdd: "SSD 128GB", power: "", keyboard: "Logitech", mouse: "Logitech-USB", monitor: "14inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M119-La", mainboard: "Dell", cpu: "Intel-i5 3340M", ram: "DDR3-4GB", hdd: "SSD 120GB", power: "", keyboard: "Logitech", mouse: "Logitech-USB", monitor: "14inch", source: "Xã hội hóa", repairs: [] },
+                    { id: "M20-La", mainboard: "Dell", cpu: "Intel-i3 2348M", ram: "DDR3-4GB", hdd: "SSD 128GB", power: "", keyboard: "Logitech", mouse: "Logitech-USB", monitor: "14inch", source: "Xã hội hóa", repairs: [] }
+                ],
+                otherDevices: [
+                    { stt: 1, name: "Moderm ADSL", brand: "-", spec: "-", serial: "-", note: "" },
+                    { stt: 2, name: "Moderm Wireless", brand: "-", spec: "-", serial: "-", note: "" },
+                    { stt: 3, name: "Switch", brand: "TP-LINK", spec: "3 x 16 port và 1 x 24 port", serial: "-", note: "" },
+                    { stt: 4, name: "Projector", brand: "-", spec: "-", serial: "-", note: "" },
+                    { stt: 5, name: "Tivi", brand: "EASmart", spec: "75 inch", serial: "-", note: "" },
+                    { stt: 6, name: "Máy in", brand: "-", spec: "-", serial: "-", note: "" },
+                    { stt: 7, name: "Máy Scan", brand: "-", spec: "-", serial: "-", note: "" },
+                    { stt: 8, name: "Tủ Rack", brand: "-", spec: "-", serial: "-", note: "" },
+                    { stt: 9, name: "Tủ", brand: "Trí Cường", spec: "2 cánh cửa; mỗi bên 3 ngăn", serial: "-", note: "" }
+                ],
+                pl3List: [
+                    { date: "02/11/2026", tiet: "Tiết 2", hs: 35, may: 21, content: "Tập gõ bàn phím hàng phím cơ bản", note: "Tốt" }
+                ],
+                pl4List: [
+                    { date: "02/11/2026", buoi: "Sáng", tiet: "Tiết 2-3", lop: "Lớp 4A", bai: "Thực hành Word", dau: "Bình thường", sau: "Bình thường", gv: "Phạm Văn Hiền" }
+                ]
+            }
+        };
+
+        let roomsData = JSON.parse(localStorage.getItem('room_manager_data_v2')) || defaultRoomsData;
+        let currentRoom = localStorage.getItem('room_manager_current_v2') || Object.keys(roomsData)[0];
+        let activeTab = 'pl1';
+
+        function saveData() {
+            localStorage.setItem('room_manager_data_v2', JSON.stringify(roomsData));
+            localStorage.setItem('room_manager_current_v2', currentRoom);
+        }
+
+        function initApp() {
+            renderRoomSelector();
+            loadCurrentRoomData();
+        }
+
+        function renderRoomSelector() {
+            const selector = document.getElementById('roomSelector');
+            selector.innerHTML = Object.keys(roomsData).map(room => `<option value="${room}" ${room === currentRoom ? 'selected' : ''}>${room}</option>`).join('');
+        }
+
+        function switchRoom(roomName) {
+            currentRoom = roomName;
+            saveData();
+            loadCurrentRoomData();
+        }
+
+        function loadCurrentRoomData() {
+            if(!roomsData[currentRoom]) {
+                currentRoom = Object.keys(roomsData)[0];
+            }
+            renderPl1();
+            renderPl2b();
+            populatePcSelect();
+            renderPcDetail();
+            renderPl3();
+            renderPl4();
+            document.getElementById('room-stat-title').innerText = `Thống Kê (${currentRoom})`;
+        }
+
+        function openAddRoomModal() {
+            document.getElementById('newRoomName').value = "";
+            document.getElementById('roomModal').classList.remove('hidden');
+        }
+
+        function saveNewRoom(e) {
+            e.preventDefault();
+            const name = document.getElementById('newRoomName').value.trim();
+            if (name && !roomsData[name]) {
+                roomsData[name] = { pcList: [], otherDevices: [], pl3List: [], pl4List: [] };
+                currentRoom = name;
+                saveData();
+                renderRoomSelector();
+                loadCurrentRoomData();
+                closeModal('roomModal');
+            } else {
+                alert("Tên phòng đã tồn tại hoặc không hợp lệ!");
+            }
+        }
+
+        function openEditRoomModal() {
+            document.getElementById('editRoomNameInput').value = currentRoom;
+            document.getElementById('editRoomModal').classList.remove('hidden');
+        }
+
+        function saveEditRoom(e) {
+            e.preventDefault();
+            const newName = document.getElementById('editRoomNameInput').value.trim();
+            if (!newName) return;
+            if (newName === currentRoom) {
+                closeModal('editRoomModal');
+                return;
+            }
+            if (roomsData[newName]) {
+                alert("Tên phòng này đã tồn tại!");
+                return;
+            }
+            // Đổi tên key trong object roomsData
+            roomsData[newName] = roomsData[currentRoom];
+            delete roomsData[currentRoom];
+            currentRoom = newName;
+            saveData();
+            renderRoomSelector();
+            loadCurrentRoomData();
+            closeModal('editRoomModal');
+            alert("Đã cập nhật tên phòng thành công!");
+        }
+
+        function deleteCurrentRoom() {
+            const roomKeys = Object.keys(roomsData);
+            if (roomKeys.length <= 1) {
+                alert("Hệ thống phải duy trì ít nhất một phòng máy, không thể xóa!");
+                return;
+            }
+            if (confirm(`Bạn có chắc chắn muốn xóa phòng "${currentRoom}" và toàn bộ dữ liệu phụ lục của phòng này không?`)) {
+                delete roomsData[currentRoom];
+                currentRoom = Object.keys(roomsData)[0];
+                saveData();
+                renderRoomSelector();
+                loadCurrentRoomData();
+                alert("Đã xóa phòng thành công!");
+            }
+        }
+
+        function switchTab(tabId) {
+            ['pl1', 'pl2a', 'pl2b', 'pl3', 'pl4'].forEach(t => {
+                document.getElementById('sec-' + t).classList.add('hidden');
+                document.getElementById('nav-' + t).className = "w-full text-left px-3 py-2.5 flex items-center space-x-2.5 hover:bg-slate-50 transition text-slate-600 text-xs";
+            });
+            document.getElementById('sec-' + tabId).classList.remove('hidden');
+            document.getElementById('nav-' + tabId).className = "w-full text-left px-3 py-2.5 flex items-center space-x-2.5 hover:bg-slate-50 transition text-blue-600 font-semibold bg-blue-50/50 text-xs";
+            activeTab = tabId;
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // --- PHỤ LỤC 1 ---
+        function renderPl1() {
+            const pcList = roomsData[currentRoom].pcList;
+            const tbody = document.getElementById('tbody-pl1');
+            tbody.innerHTML = pcList.map((pc, i) => `
+                <tr class="hover:bg-slate-50 border-b border-slate-100">
+                    <td class="p-2 font-bold text-indigo-700">${pc.id}</td>
+                    <td class="p-2">${pc.mainboard}</td>
+                    <td class="p-2">${pc.cpu}</td>
+                    <td class="p-2">${pc.ram}</td>
+                    <td class="p-2">${pc.hdd}</td>
+                    <td class="p-2">${pc.power}</td>
+                    <td class="p-2">${pc.keyboard}</td>
+                    <td class="p-2">${pc.mouse}</td>
+                    <td class="p-2">${pc.monitor}</td>
+                    <td class="p-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">${pc.source}</span></td>
+                    <td class="p-2 text-center space-x-2">
+                        <button onclick="editPc(${i})" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deletePc(${i})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('stat-total-pc').innerText = pcList.length;
+        }
+
+        function openAddPcModal() {
+            document.getElementById('pcModalTitle').innerText = "Thêm Máy Vi Tính";
+            document.getElementById('pcFormIndex').value = "";
+            document.getElementById('pcForm').reset();
+            document.getElementById('pcModal').classList.remove('hidden');
+        }
+
+        function editPc(index) {
+            const pc = roomsData[currentRoom].pcList[index];
+            document.getElementById('pcModalTitle').innerText = "Sửa Máy " + pc.id;
+            document.getElementById('pcFormIndex').value = index;
+            document.getElementById('pcFormId').value = pc.id;
+            document.getElementById('pcFormMain').value = pc.mainboard;
+            document.getElementById('pcFormCpu').value = pc.cpu;
+            document.getElementById('pcFormRam').value = pc.ram;
+            document.getElementById('pcFormHdd').value = pc.hdd;
+            document.getElementById('pcFormPower').value = pc.power;
+            document.getElementById('pcFormKeyboard').value = pc.keyboard;
+            document.getElementById('pcFormMouse').value = pc.mouse;
+            document.getElementById('pcFormMonitor').value = pc.monitor;
+            document.getElementById('pcFormSource').value = pc.source;
+            document.getElementById('pcModal').classList.remove('hidden');
+        }
+
+        function savePcForm(e) {
+            e.preventDefault();
+            const idx = document.getElementById('pcFormIndex').value;
+            const newPc = {
+                id: document.getElementById('pcFormId').value,
+                mainboard: document.getElementById('pcFormMain').value,
+                cpu: document.getElementById('pcFormCpu').value,
+                ram: document.getElementById('pcFormRam').value,
+                hdd: document.getElementById('pcFormHdd').value,
+                power: document.getElementById('pcFormPower').value,
+                keyboard: document.getElementById('pcFormKeyboard').value,
+                mouse: document.getElementById('pcFormMouse').value,
+                monitor: document.getElementById('pcFormMonitor').value,
+                source: document.getElementById('pcFormSource').value,
+                repairs: idx !== "" && roomsData[currentRoom].pcList[idx].repairs ? roomsData[currentRoom].pcList[idx].repairs : []
+            };
+            if (idx === "") roomsData[currentRoom].pcList.push(newPc);
+            else roomsData[currentRoom].pcList[idx] = newPc;
+            saveData();
+            closeModal('pcModal');
+            loadCurrentRoomData();
+        }
+
+        function deletePc(index) {
+            if (confirm("Xóa máy này?")) {
+                roomsData[currentRoom].pcList.splice(index, 1);
+                saveData();
+                loadCurrentRoomData();
+            }
+        }
+
+        // --- PHỤ LỤC 2a ---
+        function populatePcSelect() {
+            const pcList = roomsData[currentRoom].pcList;
+            const select = document.getElementById('select-pc-detail');
+            const currentVal = select.value;
+            select.innerHTML = pcList.map(pc => `<option value="${pc.id}">Máy ${pc.id}</option>`).join('');
+            if(currentVal && pcList.some(p => p.id === currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        function renderPcDetail() {
+            const pcList = roomsData[currentRoom].pcList;
+            const id = document.getElementById('select-pc-detail').value || (pcList[0] ? pcList[0].id : "");
+            const pc = pcList.find(p => p.id === id) || pcList[0];
+            if (!pc) {
+                document.getElementById('pc-detail-card').innerHTML = "<div class='col-span-4 text-center text-slate-400'>Chưa có máy nào</div>";
+                document.getElementById('tbody-pl2a-repair').innerHTML = "";
+                return;
+            }
+            document.getElementById('pc-detail-card').innerHTML = `
+                <div><span class="text-slate-400 block">Bo Mạch chính (Main board):</span> <b>${pc.mainboard}</b></div>
+                <div><span class="text-slate-400 block">Vi Xử lý (CPU):</span> <b>${pc.cpu}</b></div>
+                <div><span class="text-slate-400 block">Bộ nhớ (RAM):</span> <b>${pc.ram}</b></div>
+                <div><span class="text-slate-400 block">Ổ đĩa cứng (HDD):</span> <b>${pc.hdd}</b></div>
+                <div><span class="text-slate-400 block">Nguồn (Power):</span> <b>${pc.power}</b></div>
+                <div><span class="text-slate-400 block">Bàn phím (Keyboard):</span> <b>${pc.keyboard}</b></div>
+                <div><span class="text-slate-400 block">Chuột (Mouse):</span> <b>${pc.mouse}</b></div>
+                <div><span class="text-slate-400 block">Màn hình (Monitor):</span> <b>${pc.monitor}</b></div>
+            `;
+            const tbody = document.getElementById('tbody-pl2a-repair');
+            const repairs = pc.repairs || [];
+            if (repairs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-slate-400">Chưa có ghi nhận sửa chữa</td></tr>`;
+            } else {
+                tbody.innerHTML = repairs.map((r, i) => `
+                    <tr class="hover:bg-slate-50 border-b border-slate-100">
+                        <td class="p-2 text-center font-semibold">${i + 1}</td>
+                        <td class="p-2 font-medium">${r.huhuong}</td>
+                        <td class="p-2">${r.ngay}</td>
+                        <td class="p-2">${r.noidung}</td>
+                        <td class="p-2">${r.kynhan}</td>
+                        <td class="p-2 text-center space-x-2">
+                            <button onclick="editRepair(${i})" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteRepair(${i})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function editCurrentPcFromPl2a() {
+            const pcId = document.getElementById('select-pc-detail').value;
+            const pcList = roomsData[currentRoom].pcList;
+            const idx = pcList.findIndex(p => p.id === pcId);
+            if (idx !== -1) {
+                editPc(idx);
+            } else {
+                alert("Vui lòng chọn máy cần sửa!");
+            }
+        }
+
+        function deleteCurrentPcFromPl2a() {
+            const pcId = document.getElementById('select-pc-detail').value;
+            const pcList = roomsData[currentRoom].pcList;
+            const idx = pcList.findIndex(p => p.id === pcId);
+            if (idx !== -1) {
+                deletePc(idx);
+            } else {
+                alert("Vui lòng chọn máy cần xóa!");
+            }
+        }
+
+        function openAddRepairModal() {
+            document.getElementById('repairModalTitle').innerText = "Thêm Lượt Sửa Chữa";
+            document.getElementById('repairFormIndex').value = "";
+            document.getElementById('repairForm').reset();
+            document.getElementById('repairModal').classList.remove('hidden');
+        }
+
+        function editRepair(index) {
+            const pcId = document.getElementById('select-pc-detail').value;
+            const pc = roomsData[currentRoom].pcList.find(p => p.id === pcId);
+            const r = pc.repairs[index];
+            document.getElementById('repairModalTitle').innerText = "Sửa Lượt Sửa Chữa";
+            document.getElementById('repairFormIndex').value = index;
+            document.getElementById('repairFormHuhuong').value = r.huhuong;
+            document.getElementById('repairFormNgay').value = r.ngay;
+            document.getElementById('repairFormNoidung').value = r.noidung;
+            document.getElementById('repairFormKynhan').value = r.kynhan;
+            document.getElementById('repairModal').classList.remove('hidden');
+        }
+
+        function saveRepairForm(e) {
+            e.preventDefault();
+            const pcId = document.getElementById('select-pc-detail').value;
+            const pc = roomsData[currentRoom].pcList.find(p => p.id === pcId);
+            if (!pc) return;
+            if (!pc.repairs) pc.repairs = [];
+            const idx = document.getElementById('repairFormIndex').value;
+            const data = {
+                huhuong: document.getElementById('repairFormHuhuong').value,
+                ngay: document.getElementById('repairFormNgay').value,
+                noidung: document.getElementById('repairFormNoidung').value,
+                kynhan: document.getElementById('repairFormKynhan').value
+            };
+            if (idx === "") pc.repairs.push(data);
+            else pc.repairs[idx] = data;
+            saveData();
+            closeModal('repairModal');
+            renderPcDetail();
+        }
+
+        function deleteRepair(index) {
+            const pcId = document.getElementById('select-pc-detail').value;
+            const pc = roomsData[currentRoom].pcList.find(p => p.id === pcId);
+            pc.repairs.splice(index, 1);
+            saveData();
+            renderPcDetail();
+        }
+
+        // --- PHỤ LỤC 2b ---
+        function renderPl2b() {
+            const devices = roomsData[currentRoom].otherDevices;
+            const tbody = document.getElementById('tbody-pl2b');
+            tbody.innerHTML = devices.map((d, i) => `
+                <tr class="hover:bg-slate-50 border-b border-slate-100">
+                    <td class="p-2.5 text-center font-semibold">${i + 1}</td>
+                    <td class="p-2.5 font-bold">${d.name}</td>
+                    <td class="p-2.5">${d.brand}</td>
+                    <td class="p-2.5">${d.spec}</td>
+                    <td class="p-2.5">${d.serial}</td>
+                    <td class="p-2.5 text-slate-400">${d.note || '-'}</td>
+                    <td class="p-2.5 text-center space-x-2">
+                        <button onclick="editDevice(${i})" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteDevice(${i})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('stat-devices').innerText = devices.length;
+        }
+
+        function openAddDeviceModal() {
+            document.getElementById('deviceModalTitle').innerText = "Thêm Thiết Bị Khác";
+            document.getElementById('deviceFormIndex').value = "";
+            document.getElementById('deviceForm').reset();
+            document.getElementById('deviceModal').classList.remove('hidden');
+        }
+
+        function editDevice(index) {
+            const d = roomsData[currentRoom].otherDevices[index];
+            document.getElementById('deviceModalTitle').innerText = "Sửa Thiết Bị";
+            document.getElementById('deviceFormIndex').value = index;
+            document.getElementById('deviceFormName').value = d.name;
+            document.getElementById('deviceFormBrand').value = d.brand;
+            document.getElementById('deviceFormSpec').value = d.spec;
+            document.getElementById('deviceFormSerial').value = d.serial;
+            document.getElementById('deviceFormNote').value = d.note;
+            document.getElementById('deviceModal').classList.remove('hidden');
+        }
+
+        function saveDeviceForm(e) {
+            e.preventDefault();
+            const idx = document.getElementById('deviceFormIndex').value;
+            const data = {
+                name: document.getElementById('deviceFormName').value,
+                brand: document.getElementById('deviceFormBrand').value,
+                spec: document.getElementById('deviceFormSpec').value,
+                serial: document.getElementById('deviceFormSerial').value,
+                note: document.getElementById('deviceFormNote').value
+            };
+            if (idx === "") roomsData[currentRoom].otherDevices.push(data);
+            else roomsData[currentRoom].otherDevices[idx] = data;
+            saveData();
+            closeModal('deviceModal');
+            renderPl2b();
+        }
+
+        function deleteDevice(index) {
+            roomsData[currentRoom].otherDevices.splice(index, 1);
+            saveData();
+            renderPl2b();
+        }
+
+        // --- PHỤ LỤC 3 ---
+        function renderPl3() {
+            const list = roomsData[currentRoom].pl3List;
+            const tbody = document.getElementById('tbody-pl3');
+            tbody.innerHTML = list.map((r, i) => `
+                <tr class="hover:bg-slate-50 border-b border-slate-100">
+                    <td class="p-2 text-center font-semibold">${i + 1}</td>
+                    <td class="p-2">${r.date}</td>
+                    <td class="p-2 font-semibold">${r.tiet}</td>
+                    <td class="p-2">${r.hs}</td>
+                    <td class="p-2 font-bold text-indigo-600">${r.may}</td>
+                    <td class="p-2">${r.content}</td>
+                    <td class="p-2">${r.note || '-'}</td>
+                    <td class="p-2 text-center space-x-2">
+                        <button onclick="editPl3(${i})" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deletePl3(${i})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openAddPl3Modal() {
+            document.getElementById('pl3ModalTitle').innerText = "Thêm Phiếu Đăng Ký";
+            document.getElementById('pl3FormIndex').value = "";
+            document.getElementById('pl3Form').reset();
+            document.getElementById('pl3Modal').classList.remove('hidden');
+        }
+
+        function editPl3(index) {
+            const r = roomsData[currentRoom].pl3List[index];
+            document.getElementById('pl3ModalTitle').innerText = "Sửa Phiếu Đăng Ký";
+            document.getElementById('pl3FormIndex').value = index;
+            document.getElementById('pl3FormDate').value = r.date;
+            document.getElementById('pl3FormTiet').value = r.tiet;
+            document.getElementById('pl3FormHs').value = r.hs;
+            document.getElementById('pl3FormMay').value = r.may;
+            document.getElementById('pl3FormContent').value = r.content;
+            document.getElementById('pl3FormNote').value = r.note;
+            document.getElementById('pl3Modal').classList.remove('hidden');
+        }
+
+        function savePl3Form(e) {
+            e.preventDefault();
+            const idx = document.getElementById('pl3FormIndex').value;
+            const data = {
+                date: document.getElementById('pl3FormDate').value,
+                tiet: document.getElementById('pl3FormTiet').value,
+                hs: document.getElementById('pl3FormHs').value,
+                may: document.getElementById('pl3FormMay').value,
+                content: document.getElementById('pl3FormContent').value,
+                note: document.getElementById('pl3FormNote').value
+            };
+            if (idx === "") roomsData[currentRoom].pl3List.push(data);
+            else roomsData[currentRoom].pl3List[idx] = data;
+            saveData();
+            closeModal('pl3Modal');
+            renderPl3();
+        }
+
+        function deletePl3(index) {
+            roomsData[currentRoom].pl3List.splice(index, 1);
+            saveData();
+            renderPl3();
+        }
+
+        // --- PHỤ LỤC 4 ---
+        function renderPl4() {
+            const list = roomsData[currentRoom].pl4List;
+            const tbody = document.getElementById('tbody-pl4');
+            tbody.innerHTML = list.map((r, i) => `
+                <tr class="hover:bg-slate-50 border-b border-slate-100">
+                    <td class="p-2 text-center font-semibold">${i + 1}</td>
+                    <td class="p-2">${r.date}</td>
+                    <td class="p-2">${r.buoi}</td>
+                    <td class="p-2 font-semibold">${r.tiet}</td>
+                    <td class="p-2 font-bold text-indigo-700">${r.lop}</td>
+                    <td class="p-2">${r.bai}</td>
+                    <td class="p-2 text-emerald-600">${r.dau}</td>
+                    <td class="p-2 text-emerald-600">${r.sau}</td>
+                    <td class="p-2">${r.gv}</td>
+                    <td class="p-2 text-center space-x-2">
+                        <button onclick="editPl4(${i})" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deletePl4(${i})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openAddPl4Modal() {
+            document.getElementById('pl4ModalTitle').innerText = "Thêm Nhật Ký Tiết Dạy";
+            document.getElementById('pl4FormIndex').value = "";
+            document.getElementById('pl4Form').reset();
+            document.getElementById('pl4FormDau').value = "Bình thường";
+            document.getElementById('pl4FormSau').value = "Bình thường";
+            document.getElementById('pl4FormGv').value = "Phạm Văn Hiền";
+            document.getElementById('pl4Modal').classList.remove('hidden');
+        }
+
+        function editPl4(index) {
+            const r = roomsData[currentRoom].pl4List[index];
+            document.getElementById('pl4ModalTitle').innerText = "Sửa Nhật Ký";
+            document.getElementById('pl4FormIndex').value = index;
+            document.getElementById('pl4FormDate').value = r.date;
+            document.getElementById('pl4FormBuoi').value = r.buoi;
+            document.getElementById('pl4FormTiet').value = r.tiet;
+            document.getElementById('pl4FormLop').value = r.lop;
+            document.getElementById('pl4FormBai').value = r.bai;
+            document.getElementById('pl4FormDau').value = r.dau;
+            document.getElementById('pl4FormSau').value = r.sau;
+            document.getElementById('pl4FormGv').value = r.gv;
+            document.getElementById('pl4Modal').classList.remove('hidden');
+        }
+
+        function savePl4Form(e) {
+            e.preventDefault();
+            const idx = document.getElementById('pl4FormIndex').value;
+            const data = {
+                date: document.getElementById('pl4FormDate').value,
+                buoi: document.getElementById('pl4FormBuoi').value,
+                tiet: document.getElementById('pl4FormTiet').value,
+                lop: document.getElementById('pl4FormLop').value,
+                bai: document.getElementById('pl4FormBai').value,
+                dau: document.getElementById('pl4FormDau').value,
+                sau: document.getElementById('pl4FormSau').value,
+                gv: document.getElementById('pl4FormGv').value
+            };
+            if (idx === "") roomsData[currentRoom].pl4List.push(data);
+            else roomsData[currentRoom].pl4List[idx] = data;
+            saveData();
+            closeModal('pl4Modal');
+            renderPl4();
+        }
+
+        function deletePl4(index) {
+            roomsData[currentRoom].pl4List.splice(index, 1);
+            saveData();
+            renderPl4();
+        }
+
+        // Nhập file Excel thông minh
+        function importExcelFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    workbook.SheetNames.forEach(sheetName => {
+                        let sheet = workbook.Sheets[sheetName];
+                        let rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        let nameLower = sheetName.toLowerCase();
+                        let fileNameLower = file.name.toLowerCase();
+
+                        if (fileNameLower.includes('phụ lục 1') || nameLower.includes('phụ lục 1') || nameLower.includes('pl1')) {
+                            let newPcs = [];
+                            for(let i=1; i<rows.length; i++) {
+                                let r = rows[i];
+                                if(r && r[0] && !String(r[0]).includes("UBND") && !String(r[0]).includes("Tên máy")) {
+                                    newPcs.push({
+                                        id: String(r[0]).trim(), mainboard: r[1]||"", cpu: r[2]||"", ram: r[3]||"", hdd: r[4]||"",
+                                        power: r[6]||r[5]||"", keyboard: r[7]||"", mouse: r[8]||"", monitor: r[9]||"", source: r[11]||"Xã hội hóa", repairs: []
+                                    });
+                                }
+                            }
+                            if(newPcs.length > 0) { roomsData[currentRoom].pcList = newPcs; }
+                        } else if (fileNameLower.includes('2b') || nameLower.includes('2b')) {
+                            let newDevs = [];
+                            for(let i=13; i<rows.length; i++) {
+                                let r = rows[i];
+                                if(r && r[1] && !String(r[1]).includes("Hồ Dương") && !String(r[1]).includes("TÌNH TRẠNG")) {
+                                    newDevs.push({ stt: newDevs.length+1, name: r[1], brand: r[2]||"-", spec: r[3]||"-", serial: r[4]||"-", note: r[5]||"" });
+                                }
+                            }
+                            if(newDevs.length > 0) { roomsData[currentRoom].otherDevices = newDevs; }
+                        } else if (fileNameLower.includes('3') || nameLower.includes('3') || nameLower.includes('sheet2')) {
+                            let newPl3 = [];
+                            for(let i=10; i<rows.length; i++) {
+                                let r = rows[i];
+                                if(r && r[1] && !String(r[1]).includes("Phòng máy")) {
+                                    newPl3.push({ date: r[1], tiet: r[2]||"", hs: r[3]||0, may: r[4]||0, content: r[5]||"", note: r[6]||"" });
+                                }
+                            }
+                            if(newPl3.length > 0) { roomsData[currentRoom].pl3List = newPl3; }
+                        } else if (fileNameLower.includes('4') || nameLower.includes('4')) {
+                            let newPl4 = [];
+                            for(let i=36; i<rows.length; i++) {
+                                let r = rows[i];
+                                if(r && r[1] && !String(r[1]).includes("Ghi chú") && !String(r[1]).includes("STT")) {
+                                    newPl4.push({ date: r[1], buoi: r[2]||"Sáng", tiet: r[3]||"", lop: r[4]||"", bai: r[5]||"", dau: r[6]||"Bình thường", sau: r[7]||"Bình thường", gv: r[8]||"Phạm Văn Hiền" });
+                                }
+                            }
+                            if(newPl4.length > 0) { roomsData[currentRoom].pl4List = newPl4; }
+                        }
+                    });
+
+                    saveData();
+                    loadCurrentRoomData();
+                    alert("Đã nhập dữ liệu thành công cho " + currentRoom + "!");
+                } catch(err) {
+                    alert("Lỗi đọc file Excel! Vui lòng kiểm tra lại cấu trúc file.");
+                    console.error(err);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Xuất file Excel
+        function exportCurrentSheet() {
+            let exportData = [];
+            let fileName = `${currentRoom.replace(/\s+/g, '_')}_${activeTab.toUpperCase()}.xlsx`;
+
+            if (activeTab === 'pl1' || activeTab === 'pl2a') {
+                exportData = roomsData[currentRoom].pcList.map(pc => ({
+                    "Tên máy": pc.id, "Bo Mạch chính (Main board)": pc.mainboard, "Vi Xử lý (CPU)": pc.cpu, "Bộ nhớ (RAM)": pc.ram, "Ổ đĩa cứng (HDD)": pc.hdd,
+                    "Nguồn (Power)": pc.power, "Bàn phím (Keyboard)": pc.keyboard, "Chuột (Mouse)": pc.mouse, "Màn hình (Monitor)": pc.monitor, "Nguồn gốc": pc.source
+                }));
+            } else if (activeTab === 'pl2b') {
+                exportData = roomsData[currentRoom].otherDevices.map((d, i) => ({
+                    "STT": i + 1, "Thiết bị": d.name, "Nhãn hiệu": d.brand, "Thông số kỹ thuật": d.spec, "Số Serial (nếu có)": d.serial, "Ghi Chú": d.note
+                }));
+            } else if (activeTab === 'pl3') {
+                exportData = roomsData[currentRoom].pl3List.map((r, i) => ({
+                    "STT": i + 1, "Ngày Tháng": r.date, "Tiết": r.tiet, "Số học sinh": r.hs, "Số lượng máy sử dụng": r.may, "Nội dung hoạt động": r.content, "Ghi chú": r.note
+                }));
+            } else if (activeTab === 'pl4') {
+                exportData = roomsData[currentRoom].pl4List.map((r, i) => ({
+                    "STT": i + 1, "Ngày dạy": r.date, "Buổi dạy": r.buoi, "Tiết dạy": r.tiet, "Lớp": r.lop, "Tên bài dạy (hoặc nội dung hoạt động)": r.bai, "Tình trạng phòng máy đầu giờ dạy": r.dau, "Tình trạng phòng máy sau giờ dạy": r.sau, "GV ký tên": r.gv
+                }));
+            }
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, activeTab);
+            XLSX.writeFile(wb, fileName);
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
